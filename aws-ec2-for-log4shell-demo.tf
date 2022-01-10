@@ -83,8 +83,64 @@ resource "aws_flow_log" "vpc_flow_log" {
 # Create S3 bucket for storing flow log
 
 resource "aws_s3_bucket" "vpc_flow_log" {
+  # checkov:skip=CKV_AWS_144: replication not required
   bucket = var.flow_log_bucket_name
   force_destroy = "true"
+  versioning {
+    enabled = true
+  }
+  logging {
+    target_bucket = aws_s3_bucket.s3_access_log.id
+    target_prefix = "log/"
+  }
+  server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        sse_algorithm = "aws:kms"
+      }
+    }
+  }
+}
+
+# Block public access of the S3 bucket
+
+resource "aws_s3_bucket_public_access_block" "vpc_flow_log" {
+  bucket = aws_s3_bucket.vpc_flow_log.id
+
+  block_public_acls   = true
+  block_public_policy = true
+  ignore_public_acls = true
+  restrict_public_buckets = true
+}
+
+# Create S3 bucket for S3 access logging
+
+resource "aws_s3_bucket" "s3_access_log" {
+  # checkov:skip=CKV_AWS_144: replication not required
+  # checkov:skip=CKV_AWS_18: This bucket is for storing S3 bucket access log
+  bucket = var.s3_access_log_bucket_name
+  force_destroy = "true"
+  versioning {
+    enabled = true
+  }
+  server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        sse_algorithm = "aws:kms"
+      }
+    }
+  }
+}
+
+# Block public access of the S3 bucket
+
+resource "aws_s3_bucket_public_access_block" "s3_access_log" {
+  bucket = aws_s3_bucket.s3_access_log.id
+
+  block_public_acls   = true
+  block_public_policy = true
+  ignore_public_acls = true
+  restrict_public_buckets = true
 }
 
 # Create vpc
@@ -160,6 +216,7 @@ resource "aws_security_group" "allow-ssh-web" {
   }
 
   egress {
+    description = "allow all outbound connections"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -174,6 +231,8 @@ resource "aws_security_group" "allow-ssh-web" {
 # Create Ubuntu EC2
 
 resource "aws_instance" "web-server" {
+	# checkov:skip=CKV_AWS_88: public IP required by web server
+  # checkov:skip=CKV_AWS_135: EBS optimization not supported by instance type
   ami               = var.ec2_ami
   instance_type     = var.ec2_instance_type
   key_name          = var.ec2_key_pair_name
@@ -226,6 +285,17 @@ resource "aws_instance" "web-server" {
   tags = {
     Name = "web-server"
   }
+  monitoring = true
+  root_block_device {
+    encrypted = true
+  }
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens = "required"
+  }
+#   ebs_block_device {
+#     encrypted = true
+#   }
 }
 
 output "server_public_ip" {
