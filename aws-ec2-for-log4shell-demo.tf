@@ -1,5 +1,5 @@
 provider "aws" {
-  region     = var.aws_region
+  region = var.aws_region
 }
 
 # ---------- variable definition ----------
@@ -14,10 +14,10 @@ variable "flow_log_bucket_name" {
 
 variable "s3_access_log_bucket_name" {
   description = "The name of the S3 bucket used to store access log (must be unique within an AWS partition)"
-} 
+}
 
 variable "ssh_allowed_host" {
-  type = string
+  type        = string
   description = "CIDR block allowed to ssh to the EC2 VM"
 }
 
@@ -35,12 +35,12 @@ variable "ec2_instance_type" {
 
 variable "pcc_username" {
   description = "Prisma Cloud username (for SaaS Console, it is the access key ID defined in Setings > Access Keys)"
-  sensitive = "true"
+  sensitive   = "true"
 }
 
 variable "pcc_password" {
   description = "Prisma Cloud password (for SaaS Console, it is the secret key defined in Setings > Access Keys)"
-  sensitive = "true"
+  sensitive   = "true"
 }
 
 variable "pcc_url" {
@@ -71,7 +71,8 @@ resource "aws_default_security_group" "default" {
   vpc_id = aws_vpc.vpc1.id
 
   tags = {
-    Name = "default SG"
+    Name      = "default SG"
+    yor_trace = "9ef770db-a205-453a-86c3-4b0a7312db3f"
   }
 }
 
@@ -82,13 +83,16 @@ resource "aws_flow_log" "vpc_flow_log" {
   log_destination_type = "s3"
   traffic_type         = "ALL"
   vpc_id               = aws_vpc.vpc1.id
+  tags = {
+    yor_trace = "08cd720d-77d7-4a48-8be7-f6a907ad5be8"
+  }
 }
 
 # Create S3 bucket for storing flow log
 
 resource "aws_s3_bucket" "vpc_flow_log" {
   # checkov:skip=CKV_AWS_144: replication not required
-  bucket = var.flow_log_bucket_name
+  bucket        = var.flow_log_bucket_name
   force_destroy = "true"
   versioning {
     enabled = true
@@ -104,6 +108,9 @@ resource "aws_s3_bucket" "vpc_flow_log" {
       }
     }
   }
+  tags = {
+    yor_trace = "a84c1f16-5a55-46c1-b52d-33195641a772"
+  }
 }
 
 # Block public access of the S3 bucket
@@ -111,9 +118,9 @@ resource "aws_s3_bucket" "vpc_flow_log" {
 resource "aws_s3_bucket_public_access_block" "vpc_flow_log" {
   bucket = aws_s3_bucket.vpc_flow_log.id
 
-  block_public_acls   = true
-  block_public_policy = true
-  ignore_public_acls = true
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
   restrict_public_buckets = true
 }
 
@@ -122,7 +129,7 @@ resource "aws_s3_bucket_public_access_block" "vpc_flow_log" {
 resource "aws_s3_bucket" "s3_access_log" {
   # checkov:skip=CKV_AWS_144: replication not required
   # checkov:skip=CKV_AWS_18: This bucket is for storing S3 bucket access log
-  bucket = var.s3_access_log_bucket_name
+  bucket        = var.s3_access_log_bucket_name
   force_destroy = "true"
   versioning {
     enabled = true
@@ -134,6 +141,9 @@ resource "aws_s3_bucket" "s3_access_log" {
       }
     }
   }
+  tags = {
+    yor_trace = "6d817d75-7e6b-45ae-9795-d8bbd7255469"
+  }
 }
 
 # Block public access of the S3 bucket
@@ -141,19 +151,20 @@ resource "aws_s3_bucket" "s3_access_log" {
 resource "aws_s3_bucket_public_access_block" "s3_access_log" {
   bucket = aws_s3_bucket.s3_access_log.id
 
-  block_public_acls   = true
-  block_public_policy = true
-  ignore_public_acls = true
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
   restrict_public_buckets = true
 }
 
 # Create vpc
 
 resource "aws_vpc" "vpc1" {
-  cidr_block = "10.0.0.0/16"
+  cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = "true"
   tags = {
-    Name = "VPC1"
+    Name      = "VPC1"
+    yor_trace = "0f33c275-b6c4-4cd5-88a2-e15503fc82f5"
   }
 }
 
@@ -165,7 +176,8 @@ resource "aws_subnet" "subnet-1" {
   availability_zone = format("%sa", var.aws_region)
 
   tags = {
-    Name = "vpc1-subnet-1"
+    Name      = "vpc1-subnet-1"
+    yor_trace = "9aa48479-69a9-4c78-a96a-d01a2486cead"
   }
 }
 
@@ -173,6 +185,9 @@ resource "aws_subnet" "subnet-1" {
 
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.vpc1.id
+  tags = {
+    yor_trace = "a4fb2f34-5eb7-4b4c-ac0b-ef3850adcc4a"
+  }
 }
 
 # Attach Internet GW to default route table and setup default route
@@ -186,7 +201,8 @@ resource "aws_default_route_table" "default_route_table" {
   }
 
   tags = {
-    Name = "default-route-table"
+    Name      = "default-route-table"
+    yor_trace = "f28a1706-3f10-4e81-ba52-b8e6771d66e9"
   }
 }
 
@@ -228,21 +244,22 @@ resource "aws_security_group" "allow-ssh-web" {
   }
 
   tags = {
-    Name = "allow-ssh-web"
+    Name      = "allow-ssh-web"
+    yor_trace = "edbd47da-88fe-4a77-acb8-b327863ab3dc"
   }
 }
 
 # Create Ubuntu EC2
 
 resource "aws_instance" "web-server" {
-	# checkov:skip=CKV_AWS_88: public IP required by web server
+  # checkov:skip=CKV_AWS_88: public IP required by web server
   # checkov:skip=CKV_AWS_135: EBS optimization not supported by instance type
-  ami               = var.ec2_ami
-  instance_type     = var.ec2_instance_type
-  key_name          = var.ec2_key_pair_name
+  ami                         = var.ec2_ami
+  instance_type               = var.ec2_instance_type
+  key_name                    = var.ec2_key_pair_name
   associate_public_ip_address = "true"
-  subnet_id = aws_subnet.subnet-1.id
-  vpc_security_group_ids = [aws_security_group.allow-ssh-web.id]
+  subnet_id                   = aws_subnet.subnet-1.id
+  vpc_security_group_ids      = [aws_security_group.allow-ssh-web.id]
 
   user_data = <<-EOF
     #!/bin/bash
@@ -287,7 +304,8 @@ resource "aws_instance" "web-server" {
     EOF
 
   tags = {
-    Name = "web-server"
+    Name      = "web-server"
+    yor_trace = "813da62e-0634-427a-9d8f-3c4b46ff232c"
   }
   monitoring = true
   root_block_device {
@@ -295,11 +313,11 @@ resource "aws_instance" "web-server" {
   }
   metadata_options {
     http_endpoint = "enabled"
-    http_tokens = "required"
+    http_tokens   = "required"
   }
-#   ebs_block_device {
-#     encrypted = true
-#   }
+  #   ebs_block_device {
+  #     encrypted = true
+  #   }
 }
 
 output "server_public_ip" {
